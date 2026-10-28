@@ -40,6 +40,9 @@ output "ownership_tags" {
 
 output "helm_values" {
   description = "Values for the tembo Helm chart that install the host controller with this module's identity."
+  # EKS injects Pod Identity credentials when a pod is created, so the chart
+  # must install after the association and the role's permissions exist.
+  depends_on = [aws_eks_pod_identity_association.controller, aws_iam_role_policy.controller]
   value = local.enabled ? {
     compute = {
       mode = "controller"

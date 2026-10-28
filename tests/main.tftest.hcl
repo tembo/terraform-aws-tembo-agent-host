@@ -36,13 +36,6 @@ mock_provider "aws" {
     }
   }
 
-  override_data {
-    target = data.aws_iam_openid_connect_provider.cluster
-    values = {
-      arn = "arn:aws:iam::111111111111:oidc-provider/oidc.eks.us-east-2.amazonaws.com/id/EXAMPLE"
-    }
-  }
-
   # The mock's random strings are not valid policy JSON.
   override_data {
     target = data.aws_iam_policy_document.controller_trust

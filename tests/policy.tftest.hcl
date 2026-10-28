@@ -33,13 +33,6 @@ override_data {
   }
 }
 
-override_data {
-  target = data.aws_iam_openid_connect_provider.cluster
-  values = {
-    arn = "arn:aws:iam::111111111111:oidc-provider/oidc.eks.us-east-2.amazonaws.com/id/EXAMPLE"
-  }
-}
-
 # Existing host role and security groups keep every policy input known at plan.
 variables {
   namespace                  = "eg"

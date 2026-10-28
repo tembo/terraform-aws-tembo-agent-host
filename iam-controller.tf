@@ -1,12 +1,6 @@
 # The host controller's role. It launches and terminates agent hosts, scoped by
 # the ownership tags, and may pass only the host role.
 
-data "aws_iam_openid_connect_provider" "cluster" {
-  count = local.enabled && var.identity_type == "irsa" && var.oidc_provider_arn == null ? 1 : 0
-
-  url = local.cluster_oidc_issuer
-}
-
 data "aws_iam_policy_document" "controller_trust" {
   count = local.enabled ? 1 : 0
 
@@ -45,18 +39,18 @@ data "aws_iam_policy_document" "controller_trust" {
 
       principals {
         type        = "Federated"
-        identifiers = [coalesce(var.oidc_provider_arn, one(data.aws_iam_openid_connect_provider.cluster[*].arn))]
+        identifiers = [coalesce(var.oidc_provider_arn, local.cluster_oidc_provider_arn)]
       }
 
       condition {
         test     = "StringEquals"
-        variable = "${trimprefix(local.cluster_oidc_issuer, "https://")}:sub"
+        variable = "${local.cluster_oidc_provider}:sub"
         values   = ["system:serviceaccount:${var.kubernetes_namespace}:${local.service_account_name}"]
       }
 
       condition {
         test     = "StringEquals"
-        variable = "${trimprefix(local.cluster_oidc_issuer, "https://")}:aud"
+        variable = "${local.cluster_oidc_provider}:aud"
         values   = ["sts.amazonaws.com"]
       }
     }

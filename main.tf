@@ -28,6 +28,11 @@ locals {
   account_id        = local.cluster_arn_parts[4]
   ec2_arn           = "arn:${local.partition}:ec2:${local.region}"
 
+  # IAM names a cluster's OIDC provider after its issuer, so its ARN is known
+  # without a lookup, which would fail for a provider created in the same apply.
+  cluster_oidc_provider     = trimprefix(coalesce(local.cluster_oidc_issuer, "https://"), "https://")
+  cluster_oidc_provider_arn = "arn:${local.partition}:iam::${local.account_id}:oidc-provider/${local.cluster_oidc_provider}"
+
   host_security_group_ids = concat(aws_security_group.host[*].id, var.security_group_ids)
   host_role_arn           = var.create_host_role ? one(aws_iam_role.host[*].arn) : var.host_role_arn
   host_instance_profile   = var.create_host_role ? one(aws_iam_instance_profile.host[*].name) : var.host_instance_profile_name

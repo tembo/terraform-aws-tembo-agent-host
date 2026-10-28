@@ -39,7 +39,10 @@ variable "identity_type" {
 
 variable "oidc_provider_arn" {
   type        = string
-  description = "IAM OIDC provider for the cluster, for `identity_type = \"irsa\"`. Defaults to the provider for the cluster's issuer."
+  description = <<-EOT
+    IAM OIDC provider for the cluster, for `identity_type = "irsa"`. Defaults to the provider named after the cluster's
+    issuer. Pass the provider's ARN when it is created in the same apply, so the role is created after it.
+    EOT
   default     = null
 }
 

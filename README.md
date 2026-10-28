@@ -133,7 +133,6 @@ make -C test/src test
 | [aws_vpc_security_group_ingress_rule.manager_from_cidrs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) | resource |
 | [aws_vpc_security_group_ingress_rule.manager_from_security_groups](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) | resource |
 | [aws_eks_cluster.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/eks_cluster) | data source |
-| [aws_iam_openid_connect_provider.cluster](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_openid_connect_provider) | data source |
 | [aws_iam_policy_document.controller](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.controller_trust](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.host_object_storage](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
@@ -175,7 +174,7 @@ make -C test/src test
 | manager\_ingress\_security\_group\_ids | Security groups allowed to reach each host's manager on port 8743: the Tembo API and host controller pods. Defaults<br/>to the cluster security group, which EKS pods and nodes use unless security groups for pods are configured. | `list(string)` | `null` | no |
 | name | ID element. Usually the component or solution name, e.g. 'app' or 'jenkins'.<br/>This is the only ID element not also included as a `tag`.<br/>The "name" tag is set to the full `id` string. There is no tag with the value of the `name` input. | `string` | `null` | no |
 | namespace | ID element. Usually an abbreviation of your organization name, e.g. 'eg' or 'cp', to help ensure generated IDs are globally unique | `string` | `null` | no |
-| oidc\_provider\_arn | IAM OIDC provider for the cluster, for `identity_type = "irsa"`. Defaults to the provider for the cluster's issuer. | `string` | `null` | no |
+| oidc\_provider\_arn | IAM OIDC provider for the cluster, for `identity_type = "irsa"`. Defaults to the provider named after the cluster's<br/>issuer. Pass the provider's ARN when it is created in the same apply, so the role is created after it. | `string` | `null` | no |
 | regex\_replace\_chars | Terraform regular expression (regex) string.<br/>Characters matching the regex will be removed from the ID elements.<br/>If not set, `"/[^a-zA-Z0-9-]/"` is used to remove all characters other than hyphens, letters and digits. | `string` | `null` | no |
 | release\_name | Name of the tembo Helm release, which names the host controller's service account. | `string` | `"tembo"` | no |
 | security\_group\_ids | Existing security groups for agent hosts, used with or instead of the module's group. | `list(string)` | `[]` | no |
