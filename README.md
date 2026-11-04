@@ -34,6 +34,9 @@ module "tembo_agent_host" {
   # Shared by Tembo with your account.
   image_parameter_arn = "arn:aws:ssm:us-east-2:111111111111:parameter/tembo/agent-host/ami"
 
+  # The install's URL, for file uploads to the object storage bucket.
+  object_storage_cors_allowed_origins = ["https://tembo.example.com"]
+
   # Let hosts reach the database and Redis.
   host_access_rules = [
     { security_group_id = "sg-0123456789abcdef0", port = 5432, description = "Postgres from Tembo agent hosts" },
@@ -74,6 +77,16 @@ the chart's service account, and the controller tags instances with the namespac
 agent; EKS Auto Mode includes it. `identity_type = "irsa"` trusts the cluster's IAM OIDC provider instead and adds the
 role annotation to `helm_values`.
 
+### Object storage
+
+By default the module creates an S3 bucket for the install: project builds (VM golden snapshots), file uploads and agent
+assets. Agent hosts get access through their role, and the chart's service account (the API, worker and cron) through a
+control plane role, bound like the controller's. `helm_values` sets the chart's `objectStorage` values. Pass the
+install's URL in `object_storage_cors_allowed_origins` so browsers can upload files.
+
+To use an existing bucket, set `object_storage_bucket_name`; the module then manages only access to it. Set
+`object_storage_enabled = false` to install without object storage, which turns off project builds and file uploads.
+
 ### Existing resources
 
 Set `create_security_group = false` with `security_group_ids`, or `create_host_role = false` with
@@ -85,8 +98,7 @@ Set `create_security_group = false` with `security_group_ids`, or `create_host_r
 
 ## Tests
 
-`terraform test` (or `tofu test`) runs plan-only tests in [`tests`](tests), with no AWS account. The Terratest suite in
-[`test/src`](test/src) applies [`examples/complete`](examples/complete) in AWS:
+The Terratest suite in [`test/src`](test/src) applies [`examples/complete`](examples/complete) in AWS:
 
 ```sh
 make -C test/src test
@@ -110,22 +122,33 @@ make -C test/src test
 
 | Name | Source | Version |
 |------|--------|---------|
+| control\_plane\_label | cloudposse/label/null | 0.25.0 |
 | controller\_label | cloudposse/label/null | 0.25.0 |
 | host\_label | cloudposse/label/null | 0.25.0 |
+| storage\_label | cloudposse/label/null | 0.25.0 |
 | this | cloudposse/label/null | 0.25.0 |
 
 ## Resources
 
 | Name | Type |
 |------|------|
+| [aws_eks_pod_identity_association.control_plane](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_pod_identity_association) | resource |
 | [aws_eks_pod_identity_association.controller](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_pod_identity_association) | resource |
 | [aws_iam_instance_profile.host](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_instance_profile) | resource |
+| [aws_iam_role.control_plane](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role.controller](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role.host](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_iam_role_policy.control_plane](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_iam_role_policy.controller](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_iam_role_policy.host_object_storage](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_iam_role_policy_attachment.host_extra](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_iam_role_policy_attachment.host_ssm](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
+| [aws_s3_bucket.storage](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket) | resource |
+| [aws_s3_bucket_cors_configuration.storage](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_cors_configuration) | resource |
+| [aws_s3_bucket_lifecycle_configuration.storage](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_lifecycle_configuration) | resource |
+| [aws_s3_bucket_ownership_controls.storage](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_ownership_controls) | resource |
+| [aws_s3_bucket_public_access_block.storage](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_public_access_block) | resource |
+| [aws_s3_bucket_server_side_encryption_configuration.storage](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_server_side_encryption_configuration) | resource |
 | [aws_security_group.host](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_vpc_security_group_egress_rule.all](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_egress_rule) | resource |
 | [aws_vpc_security_group_ingress_rule.cluster_api](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) | resource |
@@ -133,6 +156,8 @@ make -C test/src test
 | [aws_vpc_security_group_ingress_rule.manager_from_cidrs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) | resource |
 | [aws_vpc_security_group_ingress_rule.manager_from_security_groups](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) | resource |
 | [aws_eks_cluster.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/eks_cluster) | data source |
+| [aws_iam_policy_document.control_plane](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_iam_policy_document.control_plane_trust](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.controller](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.controller_trust](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.host_object_storage](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
@@ -147,6 +172,7 @@ make -C test/src test
 | cluster\_api\_ingress\_enabled | Allow agent hosts to reach the cluster's Kubernetes API (port 443 on the cluster security group). Hosts read their<br/>configuration through it at boot. | `bool` | `true` | no |
 | cluster\_name | Name of the EKS cluster the Tembo install runs in. | `string` | n/a | yes |
 | context | Single object for setting entire context at once.<br/>See description of individual variables for details.<br/>Leave string and numeric variables as `null` to use default value.<br/>Individual variable settings (non-null) override settings in context object,<br/>except for attributes, tags, and additional\_tag\_map, which are merged. | `any` | <pre>{<br/>  "additional_tag_map": {},<br/>  "attributes": [],<br/>  "delimiter": null,<br/>  "descriptor_formats": {},<br/>  "enabled": true,<br/>  "environment": null,<br/>  "id_length_limit": null,<br/>  "label_key_case": null,<br/>  "label_order": [],<br/>  "label_value_case": null,<br/>  "labels_as_tags": [<br/>    "unset"<br/>  ],<br/>  "name": null,<br/>  "namespace": null,<br/>  "regex_replace_chars": null,<br/>  "stage": null,<br/>  "tags": {},<br/>  "tenant": null<br/>}</pre> | no |
+| control\_plane\_service\_account\_name | Overrides the service account of the chart's API, worker and cron, which the object storage role is bound to. Defaults to the chart's: the release name when it contains `tembo`, otherwise `<release_name>-tembo`. | `string` | `null` | no |
 | create\_host\_role | Create the agent host IAM role and instance profile. When false, set `host_instance_profile_name` and `host_role_arn`. | `bool` | `true` | no |
 | create\_security\_group | Create the host security group. When false, set `security_group_ids`. | `bool` | `true` | no |
 | delimiter | Delimiter to be used between ID elements.<br/>Defaults to `-` (hyphen). Set to `""` to use no delimiter at all. | `string` | `null` | no |
@@ -155,7 +181,7 @@ make -C test/src test
 | environment | ID element. Usually used for region e.g. 'uw2', 'us-west-2', OR role 'prod', 'staging', 'dev', 'UAT' | `string` | `null` | no |
 | host\_access\_rules | Ingress rules added to existing security groups so agent hosts can reach them, such as RDS (5432), ElastiCache (6379)<br/>or an internal load balancer. | <pre>list(object({<br/>    security_group_id = string<br/>    port              = number<br/>    description       = string<br/>  }))</pre> | `[]` | no |
 | host\_instance\_profile\_name | Existing instance profile for agent hosts, when `create_host_role` is false. | `string` | `null` | no |
-| host\_object\_storage\_bucket\_arns | S3 buckets agent hosts read and write session snapshots in, when they use instance-profile credentials. | `list(string)` | `[]` | no |
+| host\_object\_storage\_bucket\_arns | Additional S3 buckets agent hosts read and write, when they use instance-profile credentials. The install's object storage bucket is included without listing it here. | `list(string)` | `[]` | no |
 | host\_policy\_arns | Additional managed policies for the host role. | `list(string)` | `[]` | no |
 | host\_role\_arn | Role of the existing instance profile, when `create_host_role` is false. The controller may pass only this role. | `string` | `null` | no |
 | host\_ssm\_enabled | Attach `AmazonSSMManagedInstanceCore` to the host role, for access through Session Manager. | `bool` | `true` | no |
@@ -174,6 +200,10 @@ make -C test/src test
 | manager\_ingress\_security\_group\_ids | Security groups allowed to reach each host's manager on port 8743: the Tembo API and host controller pods. Defaults<br/>to the cluster security group, which EKS pods and nodes use unless security groups for pods are configured. | `list(string)` | `null` | no |
 | name | ID element. Usually the component or solution name, e.g. 'app' or 'jenkins'.<br/>This is the only ID element not also included as a `tag`.<br/>The "name" tag is set to the full `id` string. There is no tag with the value of the `name` input. | `string` | `null` | no |
 | namespace | ID element. Usually an abbreviation of your organization name, e.g. 'eg' or 'cp', to help ensure generated IDs are globally unique | `string` | `null` | no |
+| object\_storage\_bucket\_name | Existing S3 bucket to use instead of creating one. The module then manages only access to it; set its CORS yourself. | `string` | `null` | no |
+| object\_storage\_cors\_allowed\_origins | Origins browsers upload files from, such as `https://tembo.example.com`: the install's URL. Without one, file uploads from the browser fail. | `list(string)` | `[]` | no |
+| object\_storage\_enabled | Give the install object storage: an S3 bucket for project builds (VM golden snapshots), file uploads and agent<br/>assets, read and write access for agent hosts and the control plane (a role for the chart's service account), and<br/>the chart's `objectStorage` values in `helm_values`. Without it, project builds and file uploads are off. | `bool` | `true` | no |
+| object\_storage\_force\_destroy | Delete the created bucket's objects when the module is destroyed. | `bool` | `false` | no |
 | oidc\_provider\_arn | IAM OIDC provider for the cluster, for `identity_type = "irsa"`. Defaults to the provider named after the cluster's<br/>issuer. Pass the provider's ARN when it is created in the same apply, so the role is created after it. | `string` | `null` | no |
 | regex\_replace\_chars | Terraform regular expression (regex) string.<br/>Characters matching the regex will be removed from the ID elements.<br/>If not set, `"/[^a-zA-Z0-9-]/"` is used to remove all characters other than hyphens, letters and digits. | `string` | `null` | no |
 | release\_name | Name of the tembo Helm release, which names the host controller's service account. | `string` | `"tembo"` | no |
@@ -189,13 +219,16 @@ make -C test/src test
 
 | Name | Description |
 |------|-------------|
+| control\_plane\_role\_arn | ARN of the control plane's role, which reads and writes the install's object storage. |
 | controller\_role\_arn | ARN of the host controller's IAM role. |
 | controller\_role\_name | Name of the host controller's IAM role. |
-| helm\_values | Values for the tembo Helm chart that install the host controller with this module's identity. |
+| helm\_values | Values for the tembo Helm chart: the host controller with this module's identity and, with object storage, the bucket and the control plane's identity. |
 | host\_class | A host class using this module's subnets, security groups, instance profile and image parameter, for the chart's<br/>`compute.hostClasses.<name>`. Host classes need the chart's CRDs, so add them in an upgrade after the first install. |
 | host\_instance\_profile\_name | Instance profile agent hosts launch with. |
 | host\_role\_arn | ARN of the agent host IAM role. |
 | host\_security\_group\_id | ID of the host security group the module creates. |
+| object\_storage\_bucket\_arn | ARN of the install's object storage bucket. |
+| object\_storage\_bucket\_name | The install's object storage bucket. |
 | ownership\_tags | Tags the host controller puts on, and requires of, the instances and volumes it manages. |
 | security\_group\_ids | All security groups agent hosts launch with. |
 | service\_account\_name | Host controller service account the role is bound to. |

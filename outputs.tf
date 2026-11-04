@@ -38,12 +38,32 @@ output "ownership_tags" {
   value       = local.enabled ? local.ownership_tags : {}
 }
 
+output "object_storage_bucket_name" {
+  description = "The install's object storage bucket."
+  value       = local.object_storage_bucket_name
+}
+
+output "object_storage_bucket_arn" {
+  description = "ARN of the install's object storage bucket."
+  value       = local.object_storage_bucket_arn
+}
+
+output "control_plane_role_arn" {
+  description = "ARN of the control plane's role, which reads and writes the install's object storage."
+  value       = one(aws_iam_role.control_plane[*].arn)
+}
+
 output "helm_values" {
-  description = "Values for the tembo Helm chart that install the host controller with this module's identity."
+  description = "Values for the tembo Helm chart: the host controller with this module's identity and, with object storage, the bucket and the control plane's identity."
   # EKS injects Pod Identity credentials when a pod is created, so the chart
-  # must install after the association and the role's permissions exist.
-  depends_on = [aws_eks_pod_identity_association.controller, aws_iam_role_policy.controller]
-  value = local.enabled ? {
+  # must install after the associations and the roles' permissions exist.
+  depends_on = [
+    aws_eks_pod_identity_association.controller,
+    aws_iam_role_policy.controller,
+    aws_eks_pod_identity_association.control_plane,
+    aws_iam_role_policy.control_plane,
+  ]
+  value = local.enabled ? merge({
     compute = {
       mode = "controller"
       controller = {
@@ -54,7 +74,19 @@ output "helm_values" {
         }
       }
     }
-  } : null
+    },
+    # A list, empty without object storage, avoids a conditional between unlike objects.
+    [for values in [{
+      objectStorage = {
+        provider = "aws"
+        bucket   = local.object_storage_bucket_name
+        region   = local.object_storage_region
+      }
+      serviceAccount = {
+        annotations = var.identity_type == "irsa" ? { "eks.amazonaws.com/role-arn" = one(aws_iam_role.control_plane[*].arn) } : {}
+      }
+    }] : values if local.object_storage_enabled]...
+  ) : null
 }
 
 output "host_class" {
