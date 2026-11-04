@@ -1,6 +1,18 @@
 # The host security group. Hosts are launched outside Terraform, so the group
 # must never be replaced: rules are separate resources, changed in place.
 
+locals {
+  host_security_group_ids = concat(aws_security_group.host[*].id, var.security_group_ids)
+
+  # Keyed by position, or "cluster" for the default, so keys are known at plan
+  # time even while the cluster is being created.
+  manager_ingress_security_group_ids = (
+    var.manager_ingress_security_group_ids != null
+    ? { for i, id in var.manager_ingress_security_group_ids : tostring(i) => id }
+    : { cluster = local.cluster_security_group_id }
+  )
+}
+
 resource "aws_security_group" "host" {
   count = local.enabled && var.create_security_group ? 1 : 0
 

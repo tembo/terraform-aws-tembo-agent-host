@@ -3,8 +3,7 @@ locals {
 
   # The chart's fullname: the release name, suffixed with the chart name
   # unless it already contains it.
-  release_fullname     = trimsuffix(substr(strcontains(var.release_name, "tembo") ? var.release_name : "${var.release_name}-tembo", 0, 63), "-")
-  service_account_name = coalesce(var.service_account_name, "${local.release_fullname}-host-controller")
+  release_fullname = trimsuffix(substr(strcontains(var.release_name, "tembo") ? var.release_name : "${var.release_name}-tembo", 0, 63), "-")
 
   # Names roles "tembo-controller" and "tembo-host" without a name in the context.
   label_name = coalesce(module.this.name, "tembo")
@@ -32,44 +31,10 @@ locals {
   # without a lookup, which would fail for a provider created in the same apply.
   cluster_oidc_provider     = trimprefix(coalesce(local.cluster_oidc_issuer, "https://"), "https://")
   cluster_oidc_provider_arn = "arn:${local.partition}:iam::${local.account_id}:oidc-provider/${local.cluster_oidc_provider}"
-
-  host_security_group_ids = concat(aws_security_group.host[*].id, var.security_group_ids)
-  host_role_arn           = var.create_host_role ? one(aws_iam_role.host[*].arn) : var.host_role_arn
-  host_instance_profile   = var.create_host_role ? one(aws_iam_instance_profile.host[*].name) : var.host_instance_profile_name
-
-  # Keyed by position, or "cluster" for the default, so keys are known at plan
-  # time even while the cluster is being created.
-  manager_ingress_security_group_ids = (
-    var.manager_ingress_security_group_ids != null
-    ? { for i, id in var.manager_ingress_security_group_ids : tostring(i) => id }
-    : { cluster = local.cluster_security_group_id }
-  )
 }
 
 data "aws_eks_cluster" "this" {
   count = local.enabled ? 1 : 0
 
   name = var.cluster_name
-}
-
-module "controller_label" {
-  source  = "cloudposse/label/null"
-  version = "0.25.0"
-
-  name            = local.label_name
-  attributes      = ["controller"]
-  id_length_limit = 64
-
-  context = module.this.context
-}
-
-module "host_label" {
-  source  = "cloudposse/label/null"
-  version = "0.25.0"
-
-  name            = local.label_name
-  attributes      = ["host"]
-  id_length_limit = 64
-
-  context = module.this.context
 }
