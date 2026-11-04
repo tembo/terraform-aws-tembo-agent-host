@@ -40,13 +40,13 @@ resource "aws_iam_role_policy_attachment" "host_extra" {
 }
 
 data "aws_iam_policy_document" "host_object_storage" {
-  count = local.enabled && var.create_host_role && length(var.host_object_storage_bucket_arns) > 0 ? 1 : 0
+  count = local.enabled && var.create_host_role && length(local.host_object_storage_bucket_arns) > 0 ? 1 : 0
 
   statement {
     sid       = "ListSnapshotBuckets"
     effect    = "Allow"
     actions   = ["s3:ListBucket"]
-    resources = var.host_object_storage_bucket_arns
+    resources = local.host_object_storage_bucket_arns
   }
 
   statement {
@@ -58,12 +58,12 @@ data "aws_iam_policy_document" "host_object_storage" {
       "s3:GetObject",
       "s3:PutObject",
     ]
-    resources = [for arn in var.host_object_storage_bucket_arns : "${arn}/*"]
+    resources = [for arn in local.host_object_storage_bucket_arns : "${arn}/*"]
   }
 }
 
 resource "aws_iam_role_policy" "host_object_storage" {
-  count = local.enabled && var.create_host_role && length(var.host_object_storage_bucket_arns) > 0 ? 1 : 0
+  count = local.enabled && var.create_host_role && length(local.host_object_storage_bucket_arns) > 0 ? 1 : 0
 
   name   = "${module.host_label.id}-object-storage"
   role   = one(aws_iam_role.host[*].id)

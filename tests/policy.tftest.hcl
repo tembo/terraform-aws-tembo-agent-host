@@ -147,3 +147,28 @@ run "irsa_trust" {
     error_message = "Expected the role trusted by the controller's service account only."
   }
 }
+
+run "control_plane_policy" {
+  command = plan
+
+  assert {
+    condition = (
+      one([for s in jsondecode(data.aws_iam_policy_document.control_plane[0].json).Statement : s if s.Sid == "ListStorageBucket"]).Resource == "arn:aws:s3:::eg-agent-host-storage" &&
+      one([for s in jsondecode(data.aws_iam_policy_document.control_plane[0].json).Statement : s if s.Sid == "ReadWriteStorage"]).Resource == "arn:aws:s3:::eg-agent-host-storage/*"
+    )
+    error_message = "Expected access to the install's bucket only."
+  }
+}
+
+run "control_plane_irsa_trust" {
+  command = plan
+
+  variables {
+    identity_type = "irsa"
+  }
+
+  assert {
+    condition     = jsondecode(data.aws_iam_policy_document.control_plane_trust[0].json).Statement[0].Condition.StringEquals["oidc.eks.us-east-2.amazonaws.com/id/EXAMPLE:sub"] == "system:serviceaccount:tembo:tembo"
+    error_message = "Expected the role trusted by the chart's service account only."
+  }
+}

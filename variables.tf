@@ -148,8 +148,42 @@ variable "host_policy_arns" {
 
 variable "host_object_storage_bucket_arns" {
   type        = list(string)
-  description = "S3 buckets agent hosts read and write session snapshots in, when they use instance-profile credentials."
+  description = "Additional S3 buckets agent hosts read and write, when they use instance-profile credentials. The install's object storage bucket is included without listing it here."
   default     = []
+}
+
+variable "object_storage_enabled" {
+  type        = bool
+  description = <<-EOT
+    Give the install object storage: an S3 bucket for project builds (VM golden snapshots), file uploads and agent
+    assets, read and write access for agent hosts and the control plane (a role for the chart's service account), and
+    the chart's `objectStorage` values in `helm_values`. Without it, project builds and file uploads are off.
+    EOT
+  default     = true
+}
+
+variable "object_storage_bucket_name" {
+  type        = string
+  description = "Existing S3 bucket to use instead of creating one. The module then manages only access to it; set its CORS yourself."
+  default     = null
+}
+
+variable "object_storage_cors_allowed_origins" {
+  type        = list(string)
+  description = "Origins browsers upload files from, such as `https://tembo.example.com`: the install's URL. Without one, file uploads from the browser fail."
+  default     = []
+}
+
+variable "object_storage_force_destroy" {
+  type        = bool
+  description = "Delete the created bucket's objects when the module is destroyed."
+  default     = false
+}
+
+variable "control_plane_service_account_name" {
+  type        = string
+  description = "Overrides the service account of the chart's API, worker and cron, which the object storage role is bound to. Defaults to the chart's: the release name when it contains `tembo`, otherwise `<release_name>-tembo`."
+  default     = null
 }
 
 variable "image_parameter_arn" {

@@ -53,6 +53,14 @@ mock_provider "aws" {
     target = data.aws_iam_policy_document.host_object_storage
     values = { json = "{}" }
   }
+  override_data {
+    target = data.aws_iam_policy_document.control_plane_trust
+    values = { json = "{}" }
+  }
+  override_data {
+    target = data.aws_iam_policy_document.control_plane
+    values = { json = "{}" }
+  }
 }
 
 variables {
@@ -264,5 +272,121 @@ run "default_name" {
   assert {
     condition     = aws_iam_role.controller[0].name == "tembo-controller" && aws_iam_role.host[0].name == "tembo-host"
     error_message = "Expected names from the default label name."
+  }
+}
+
+run "object_storage" {
+  command = plan
+
+  assert {
+    condition     = aws_s3_bucket.storage[0].bucket == "eg-agent-host-storage"
+    error_message = "Expected a bucket named after the module."
+  }
+
+  assert {
+    condition     = aws_s3_bucket_public_access_block.storage[0].block_public_policy && aws_s3_bucket_public_access_block.storage[0].restrict_public_buckets
+    error_message = "Expected public access blocked."
+  }
+
+  assert {
+    condition     = length(aws_s3_bucket_cors_configuration.storage) == 0
+    error_message = "Expected no CORS rule without origins."
+  }
+
+  assert {
+    condition     = length(aws_iam_role_policy.host_object_storage) == 1
+    error_message = "Expected the host role to get access to the bucket."
+  }
+
+  assert {
+    condition     = aws_eks_pod_identity_association.control_plane[0].service_account == "tembo" && aws_eks_pod_identity_association.control_plane[0].namespace == "tembo"
+    error_message = "Expected the chart's service account for release tembo."
+  }
+
+  assert {
+    condition     = output.helm_values.objectStorage.provider == "aws" && output.helm_values.objectStorage.bucket == "eg-agent-host-storage"
+    error_message = "Expected the bucket in the chart's objectStorage values."
+  }
+
+  assert {
+    condition     = length(output.helm_values.serviceAccount.annotations) == 0
+    error_message = "Pod Identity needs no service account annotation."
+  }
+}
+
+run "object_storage_cors" {
+  command = plan
+
+  variables {
+    object_storage_cors_allowed_origins = ["https://tembo.example.com"]
+  }
+
+  assert {
+    condition     = one(aws_s3_bucket_cors_configuration.storage[0].cors_rule).allowed_origins == toset(["https://tembo.example.com"])
+    error_message = "Expected the install's origin allowed."
+  }
+}
+
+run "object_storage_existing_bucket" {
+  command = plan
+
+  variables {
+    object_storage_bucket_name = "existing"
+  }
+
+  assert {
+    condition     = length(aws_s3_bucket.storage) == 0
+    error_message = "Expected no bucket created."
+  }
+
+  assert {
+    condition     = output.object_storage_bucket_arn == "arn:aws:s3:::existing" && output.helm_values.objectStorage.bucket == "existing"
+    error_message = "Expected the existing bucket."
+  }
+
+  assert {
+    condition     = output.helm_values.objectStorage.region == "us-east-2"
+    error_message = "Expected the cluster's region for an existing bucket."
+  }
+
+  assert {
+    condition     = length(aws_iam_role.control_plane) == 1
+    error_message = "Expected the control plane's role."
+  }
+}
+
+run "object_storage_disabled" {
+  command = plan
+
+  variables {
+    object_storage_enabled = false
+  }
+
+  assert {
+    condition     = length(aws_s3_bucket.storage) == 0 && length(aws_iam_role.control_plane) == 0 && length(aws_iam_role_policy.host_object_storage) == 0
+    error_message = "Expected no bucket and no object storage access."
+  }
+
+  assert {
+    condition     = !contains(keys(output.helm_values), "objectStorage")
+    error_message = "Expected no objectStorage values."
+  }
+}
+
+run "object_storage_irsa" {
+  command = plan
+
+  variables {
+    identity_type = "irsa"
+  }
+
+  assert {
+    condition     = length(aws_eks_pod_identity_association.control_plane) == 0
+    error_message = "IRSA needs no Pod Identity association."
+  }
+
+  assert {
+    condition     = contains(keys(output.helm_values.serviceAccount.annotations), "eks.amazonaws.com/role-arn")
+    error_message = "IRSA needs the control plane's role annotation on the chart's service account."
   }
 }
