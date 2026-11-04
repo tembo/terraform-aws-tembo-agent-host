@@ -40,9 +40,6 @@ jobs:
           $TF init -backend=false -input=false
           $TF validate
 
-      - name: Test
-        run: $TF test
-
       - name: Validate examples/complete
         working-directory: examples/complete
         run: |

@@ -98,8 +98,7 @@ Set `create_security_group = false` with `security_group_ids`, or `create_host_r
 
 ## Tests
 
-`terraform test` (or `tofu test`) runs plan-only tests in [`tests`](tests), with no AWS account. The Terratest suite in
-[`test/src`](test/src) applies [`examples/complete`](examples/complete) in AWS:
+The Terratest suite in [`test/src`](test/src) applies [`examples/complete`](examples/complete) in AWS:
 
 ```sh
 make -C test/src test
