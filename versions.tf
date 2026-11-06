@@ -4,8 +4,8 @@ terraform {
   required_providers {
     aws = {
       source = "hashicorp/aws"
-      # aws_eks_pod_identity_association arrived in 5.36.
-      version = ">= 5.36, < 7.0"
+      # The EKS cluster's compute_config (Auto Mode) arrived in 5.79.
+      version = ">= 5.79, < 7.0"
     }
   }
 }

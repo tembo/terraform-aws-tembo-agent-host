@@ -201,5 +201,14 @@ variable "volume_kms_key_arns" {
 variable "instance_types" {
   type        = list(string)
   description = "Instance types for the default host class in `helm_values`, in order of preference. They must provide /dev/kvm."
-  default     = ["m8i.4xlarge"]
+  default     = ["c8id.8xlarge"]
+}
+
+variable "root_volume_initialization_rate" {
+  type        = number
+  description = <<-EOT
+    Rate in MiB/s (100 to 300) at which EBS loads a new host's root volume from the image's snapshot, for the default host
+    class. Loaded lazily instead (null), a host's first boot can outlast the controller's registration timeout.
+    EOT
+  default     = 300
 }
