@@ -54,7 +54,11 @@ output "control_plane_role_arn" {
 }
 
 output "helm_values" {
-  description = "Values for the tembo Helm chart: the host controller with this module's identity and, with object storage, the bucket and the control plane's identity."
+  description = <<-EOT
+    Values for the tembo Helm chart: the host controller with this module's identity, a host class and pool named
+    `default`, on EKS Auto Mode its load balancers for host access, and with object storage, the bucket and the control
+    plane's identity.
+    EOT
   # EKS injects Pod Identity credentials when a pod is created, so the chart
   # must install after the associations and the roles' permissions exist.
   depends_on = [
@@ -73,36 +77,44 @@ output "helm_values" {
           annotations = var.identity_type == "irsa" ? { "eks.amazonaws.com/role-arn" = one(aws_iam_role.controller[*].arn) } : {}
         }
       }
+      hostClasses = { default = local.host_class }
+      hostPools = {
+        default = {
+          classRef = { name = "default" }
+          # Hosts that stay up, ready for sessions.
+          minHosts = 1
+          maxHosts = 3
+          # Free memory to keep for new sessions before adding a host.
+          minIdleMemory = "32Gi"
+        }
+      }
     }
     },
-    # A list, empty without object storage, avoids a conditional between unlike objects.
-    [for values in [{
-      objectStorage = {
-        provider = "aws"
-        bucket   = local.object_storage_bucket_name
-        region   = local.object_storage_region
-      }
-      serviceAccount = {
-        annotations = var.identity_type == "irsa" ? { "eks.amazonaws.com/role-arn" = one(aws_iam_role.control_plane[*].arn) } : {}
-      }
-    }] : values if local.object_storage_enabled]...
+    concat(
+      # EKS Auto Mode creates load balancers only for its own class.
+      [for values in [{
+        postgresql = { hostAccess = { loadBalancerClass = "eks.amazonaws.com/nlb" } }
+        redis      = { hostAccess = { loadBalancerClass = "eks.amazonaws.com/nlb" } }
+      }] : values if local.cluster_auto_mode],
+      # Lists, empty when off, avoid a conditional between unlike objects.
+      [for values in [{
+        objectStorage = {
+          provider = "aws"
+          bucket   = local.object_storage_bucket_name
+          region   = local.object_storage_region
+        }
+        serviceAccount = {
+          annotations = var.identity_type == "irsa" ? { "eks.amazonaws.com/role-arn" = one(aws_iam_role.control_plane[*].arn) } : {}
+        }
+      }] : values if local.object_storage_enabled],
+    )...
   ) : null
 }
 
 output "host_class" {
   description = <<-EOT
     A host class using this module's subnets, security groups, instance profile and image parameter, for the chart's
-    `compute.hostClasses.<name>`. Host classes need the chart's CRDs, so add them in an upgrade after the first install.
+    `compute.hostClasses.<name>`. `helm_values` already sets one named `default`.
     EOT
-  value = local.enabled ? {
-    aws = merge(
-      var.image_parameter_arn != null ? { imageSelectorTerms = [{ ssmParameter = var.image_parameter_arn }] } : {},
-      {
-        instanceTypes              = var.instance_types
-        subnetSelectorTerms        = concat([for id in var.host_subnet_ids : { id = id }], length(var.host_subnet_tags) > 0 ? [{ tags = var.host_subnet_tags }] : [])
-        securityGroupSelectorTerms = [for id in local.host_security_group_ids : { id = id }]
-        instanceProfile            = local.host_instance_profile
-      },
-    )
-  } : null
+  value       = local.host_class
 }
