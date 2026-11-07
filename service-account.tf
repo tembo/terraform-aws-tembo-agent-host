@@ -225,7 +225,7 @@ data "aws_iam_policy_document" "controller" {
   }
 
   dynamic "statement" {
-    for_each = length(var.volume_kms_key_arns) > 0 ? [1] : []
+    for_each = length(local.volume_key_arns) > 0 ? [1] : []
     content {
       sid    = "UseVolumeKeys"
       effect = "Allow"
@@ -235,7 +235,7 @@ data "aws_iam_policy_document" "controller" {
         "kms:GenerateDataKeyWithoutPlaintext",
         "kms:ReEncrypt*",
       ]
-      resources = var.volume_kms_key_arns
+      resources = local.volume_key_arns
 
       condition {
         test     = "StringEquals"
@@ -246,12 +246,12 @@ data "aws_iam_policy_document" "controller" {
   }
 
   dynamic "statement" {
-    for_each = length(var.volume_kms_key_arns) > 0 ? [1] : []
+    for_each = length(local.volume_key_arns) > 0 ? [1] : []
     content {
       sid       = "GrantVolumeKeysToEC2"
       effect    = "Allow"
       actions   = ["kms:CreateGrant"]
-      resources = var.volume_kms_key_arns
+      resources = local.volume_key_arns
 
       condition {
         test     = "Bool"
