@@ -186,9 +186,18 @@ variable "control_plane_service_account_name" {
   default     = null
 }
 
+variable "image_channel" {
+  type        = string
+  description = <<-EOT
+    Tembo agent host image channel the default host class in `helm_values` selects. The host controller gets the
+    channel's image from Tembo's API with the install's license key, which shares it with this account.
+    EOT
+  default     = "stable"
+}
+
 variable "image_parameter_arn" {
   type        = string
-  description = "SSM parameter publishing the agent host image ID, shared by Tembo. The controller may read only this parameter."
+  description = "SSM parameter publishing an agent host image ID, instead of `image_channel`. The controller may read only this parameter."
   default     = null
 }
 

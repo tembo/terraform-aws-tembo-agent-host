@@ -33,11 +33,18 @@ locals {
   cluster_oidc_provider     = trimprefix(coalesce(local.cluster_oidc_issuer, "https://"), "https://")
   cluster_oidc_provider_arn = "arn:${local.partition}:iam::${local.account_id}:oidc-provider/${local.cluster_oidc_provider}"
 
+  # Tembo's account publishes the image channels, encrypted with its keys, which the controller uses through EC2.
+  tembo_account_id = "844506114394"
+  volume_key_arns = concat(
+    var.volume_kms_key_arns,
+    var.image_parameter_arn == null ? ["arn:${local.partition}:kms:${local.region}:${local.tembo_account_id}:key/*"] : [],
+  )
+
   # The chart's compute.hostClasses.<name>, for the host_class and helm_values outputs.
   host_class = local.enabled ? {
     aws = merge(
-      var.image_parameter_arn != null ? { imageSelectorTerms = [{ ssmParameter = var.image_parameter_arn }] } : {},
       {
+        imageSelectorTerms         = [var.image_parameter_arn != null ? { ssmParameter = var.image_parameter_arn } : { channel = var.image_channel }]
         instanceTypes              = var.instance_types
         subnetSelectorTerms        = concat([for id in var.host_subnet_ids : { id = id }], length(var.host_subnet_tags) > 0 ? [{ tags = var.host_subnet_tags }] : [])
         securityGroupSelectorTerms = [for id in local.host_security_group_ids : { id = id }]
