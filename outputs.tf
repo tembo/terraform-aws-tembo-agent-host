@@ -55,9 +55,9 @@ output "control_plane_role_arn" {
 
 output "helm_values" {
   description = <<-EOT
-    Values for the tembo Helm chart: the host controller with this module's identity, a host class and pool named
-    `default`, on EKS Auto Mode its load balancers for host access, and with object storage, the bucket and the control
-    plane's identity.
+    Values for the tembo Helm chart: its AWS settings (`provider.aws`, with EKS Auto Mode's load balancer class), the
+    host controller with this module's identity, a host class and pool named `default`, and with object storage, the
+    bucket and the control plane's identity.
     EOT
   # EKS injects Pod Identity credentials when a pod is created, so the chart
   # must install after the associations and the roles' permissions exist.
@@ -90,24 +90,25 @@ output "helm_values" {
       }
     }
     },
-    concat(
-      # EKS Auto Mode creates load balancers only for its own class.
-      [for values in [{
-        postgresql = { hostAccess = { loadBalancerClass = "eks.amazonaws.com/nlb" } }
-        redis      = { hostAccess = { loadBalancerClass = "eks.amazonaws.com/nlb" } }
-      }] : values if local.cluster_auto_mode],
-      # Lists, empty when off, avoid a conditional between unlike objects.
-      [for values in [{
-        objectStorage = {
-          provider = "aws"
-          bucket   = local.object_storage_bucket_name
-          region   = local.object_storage_region
-        }
-        serviceAccount = {
-          annotations = var.identity_type == "irsa" ? { "eks.amazonaws.com/role-arn" = one(aws_iam_role.control_plane[*].arn) } : {}
-        }
-      }] : values if local.object_storage_enabled],
-    )...
+    {
+      provider = {
+        aws = merge(
+          { enabled = true },
+          # EKS Auto Mode creates load balancers only for its own class. Lists,
+          # empty when off, avoid a conditional between unlike objects.
+          [for values in [{ loadBalancerClass = "eks.amazonaws.com/nlb" }] : values if local.cluster_auto_mode]...
+        )
+      }
+    },
+    [for values in [{
+      objectStorage = {
+        bucket = local.object_storage_bucket_name
+        region = local.object_storage_region
+      }
+      serviceAccount = {
+        annotations = var.identity_type == "irsa" ? { "eks.amazonaws.com/role-arn" = one(aws_iam_role.control_plane[*].arn) } : {}
+      }
+    }] : values if local.object_storage_enabled]...
   ) : null
 }
 
