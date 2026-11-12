@@ -60,10 +60,10 @@ resource "helm_release" "tembo" {
 }
 ```
 
-`helm_values` turns on the chart's AWS settings (`provider.aws`), and installs the controller with this module's
-identity, and a host class and pool named `default`: the module's subnets, security groups, instance profile, image and
-`instance_types`, one to three hosts. On EKS Auto Mode it also gives the chart's internal load balancers Auto Mode's
-class (`provider.aws.loadBalancerClass`). `host_class` is the same class, for adding more.
+`helm_values` sets up the chart's Ingresses for the AWS Load Balancer Controller (`ingress.aws`), and installs the
+controller with this module's identity, and a host class and pool named `default`: the module's subnets, security
+groups, instance profile, image and `instance_types`, one to three hosts. On EKS Auto Mode it also gives the chart's host
+access load balancers Auto Mode's class. `host_class` is the same class, for adding more.
 
 The class selects Tembo's agent host image by channel (`image_channel`, default `stable`). The host controller sends the
 install's license key to Tembo's API, which shares the image with this account and grants it use of the image's KMS key;
@@ -225,7 +225,7 @@ make -C test/src test
 | control\_plane\_role\_arn | ARN of the control plane's role, which reads and writes the install's object storage. |
 | controller\_role\_arn | ARN of the host controller's IAM role. |
 | controller\_role\_name | Name of the host controller's IAM role. |
-| helm\_values | Values for the tembo Helm chart: its AWS settings (`provider.aws`, with EKS Auto Mode's load balancer class), the<br/>host controller with this module's identity, a host class and pool named `default`, and with object storage, the<br/>bucket and the control plane's identity. |
+| helm\_values | Values for the tembo Helm chart: its Ingresses for the AWS Load Balancer Controller (`ingress.aws`), the host<br/>controller with this module's identity, a host class and pool named `default`, on EKS Auto Mode its load balancers<br/>for host access, and with object storage, the bucket and the control plane's identity. |
 | host\_class | A host class using this module's subnets, security groups, instance profile and image parameter, for the chart's<br/>`compute.hostClasses.<name>`. `helm_values` already sets one named `default`. |
 | host\_instance\_profile\_name | Instance profile agent hosts launch with. |
 | host\_role\_arn | ARN of the agent host IAM role. |
