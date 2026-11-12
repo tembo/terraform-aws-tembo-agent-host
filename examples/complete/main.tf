@@ -3,7 +3,7 @@
 
 module "vpc" {
   source  = "cloudposse/vpc/aws"
-  version = "3.0.0"
+  version = "3.0.1"
 
   ipv4_primary_cidr_block = "172.16.0.0/16"
 
