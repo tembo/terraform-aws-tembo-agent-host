@@ -55,9 +55,9 @@ output "control_plane_role_arn" {
 
 output "helm_values" {
   description = <<-EOT
-    Values for the tembo Helm chart: the host controller with this module's identity, a host class and pool named
-    `default`, on EKS Auto Mode its load balancers for host access, and with object storage, the bucket and the control
-    plane's identity.
+    Values for the tembo Helm chart: its Ingresses for the AWS Load Balancer Controller (`ingress.aws`), the host
+    controller with this module's identity, a host class and pool named `default`, on EKS Auto Mode its load balancers
+    for host access, and with object storage, the bucket and the control plane's identity.
     EOT
   # EKS injects Pod Identity credentials when a pod is created, so the chart
   # must install after the associations and the roles' permissions exist.
@@ -90,6 +90,8 @@ output "helm_values" {
       }
     }
     },
+    # The chart's Ingresses, for the AWS Load Balancer Controller.
+    { ingress = { aws = { enabled = true } } },
     concat(
       # EKS Auto Mode creates load balancers only for its own class.
       [for values in [{
