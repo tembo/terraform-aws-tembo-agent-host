@@ -27,7 +27,7 @@ module "subnets" {
 
 module "eks_cluster" {
   source  = "cloudposse/eks-cluster/aws"
-  version = "4.15.0"
+  version = "4.15.1"
 
   subnet_ids            = module.subnets.private_subnet_ids
   kubernetes_version    = var.kubernetes_version
